@@ -4,46 +4,25 @@ window.addEventListener('load', function(){
     canvas.width = 500;
     canvas.height = 500;
 
-    class InputHandler{
-        constructor(player) {
-            document.addEventListener('keydown', (event) => {
-                switch(event.keyCode) {
-                    case 37: // Left arrow key
-                        player.speedX = -1;
-                        player.speedY = 0;
-                        break;
-                    case 38: // Up arrow key
-                        player.speedY = -1;
-                        player.speedX = 0;
-                        break;
-                    case 39: // Right arrow key
-                        player.speedX = 1;
-                        player.speedY = 0;
-                        break;
-                    case 40: // Down arrow key
-                        player.speedY = 1;
-                        player.speedX = 0;
-                        break;
-                }
-            });
-        }
-    }
-
-    class v {
+    class V {
         constructor(x, y) {
             this.x = x;
             this.y = y;
         }
         
         add(r) {
-            return new v(this.x + r.x, this.y + r.y);
+            return new V(this.x + r.x, this.y + r.y);
         }
     }
 
-    const north = new v(0, -1);
-    const south = new v(0, 1);
-    const east = new v(1, 0);
-    const west = new v(-1, 0);
+    const north = new V(0, -1);
+    const south = new V(0, 1);
+    const east = new V(1, 0);
+    const west = new V(-1, 0);
+
+    const world_space = 0;
+    const world_wall = 1;
+    const world_candy = 2;
 
     class Projectile {
 
@@ -54,7 +33,7 @@ window.addEventListener('load', function(){
     }
 
     class Player {
-            constructor(game){
+            constructor(game) {
                 this.game = game;
                 this.width = 20;
                 this.height = 20;
@@ -62,19 +41,61 @@ window.addEventListener('load', function(){
                 this.y = 0; 
                 this.speedY = 0;
                 this.speedX = 0;
+                this.candy_eaten = 0;
+                this.is_dead = false;
             }
-            update(){
-                if (this.game.world.map[this.x + this.speedX][this.y + this.speedY] === 1) {
+
+            update() {
+                // current movement blocked?
+                if ( this.game.world.isWall(new V(this.x + this.speedX, this.y + this.speedY)) ) {
                     this.speedX = 0;
                     this.speedY = 0;
                 }
 
+                // standing still, but next is set?
+                if ( this.speedX === 0 && this.speedY === 0 ) {
+                    if ( this.next !== undefined ) {
+                        this.speedX = this.next.x;
+                        this.speedY = this.next.y;
+                    }
+                }
+
+                // is next possible?
+                if ( this.next !== undefined ) {
+                    if ( !this.game.world.isWall(new V(this.x + this.next.x, this.y + this.next.y)) ) {
+                        this.speedX = this.next.x;
+                        this.speedY = this.next.y;
+                        this.next = undefined;
+                    }
+                }
+
                 this.y += this.speedY;
                 this.x += this.speedX;
+                let p = new V(this.x, this.y);
+
+                // check for candy
+                if ( this.game.world.isCandy(p) ) {
+                    this.candy_eaten++;
+                    this.game.world.map[this.x][this.y] = world_space;
+                }
+
+                // check for enemies
+                this.game.enemies.forEach(enemy => {
+                    if ( enemy.x === this.x && enemy.y === this.y ) {
+                        this.speedX = 0;
+                        this.speedY = 0;
+                        this.is_dead = true;
+                    }
+                });
             }
-            draw(context){
+
+            draw(context) {
                 context.fillStyle = 'green';
                 context.fillRect(this.x * 20, this.y * 20, this.width, this.height);
+            }
+
+            isDead() {
+                return this.is_dead;
             }
     }
 
@@ -85,7 +106,7 @@ window.addEventListener('load', function(){
             this.y = y;
             this.width = 20;
             this.height = 20;
-            this.velocity = new v(0, 0);
+            this.velocity = new V(0, 0);
         }
 
         update() {
@@ -93,12 +114,12 @@ window.addEventListener('load', function(){
             // if there is other options, randomly choose with low prob
             // avoid turning back unless only option
             // speedX,Y is a vector with direction and speed
-            if (this.game.world.map[this.x + this.velocity.x][this.y + this.velocity.y] === 1) {
-                this.velocity = new v(0,0);
+            if ( this.game.world.isWall(new V(this.x + this.velocity.x, this.y + this.velocity.y) ) ) {
+                this.velocity = new V(0,0);
             }
 
             let pdirs = [];
-            let cp = new v(this.x, this.y);
+            let cp = new V(this.x, this.y);
             // check current direction
             if ( !this.game.world.isWall( cp.add(this.velocity) ) ) {
                 pdirs.push( this.velocity );
@@ -121,6 +142,16 @@ window.addEventListener('load', function(){
 
             this.x += this.velocity.x;
             this.y += this.velocity.y;
+
+            // new position
+            let p = new V(this.x, this.y);
+
+            // check for player
+            if ( this.game.player.x === this.x && this.game.player.y === this.y ) {
+                this.game.player.speedX = 0;
+                this.game.player.speedY = 0;
+                this.game.player.is_dead = true;
+            }
         }
 
         draw(context) {
@@ -149,7 +180,11 @@ window.addEventListener('load', function(){
         }
 
         isWall(v) {
-            return this.map[v.x][v.y] === 1;
+            return this.map[v.x][v.y] === world_wall;
+        }
+
+        isCandy(v) {
+            return this.map[v.x][v.y] === world_candy;
         }
 
         update() {
@@ -157,15 +192,43 @@ window.addEventListener('load', function(){
         }
 
         draw(context) {
+            const flower = document.getElementById('flower');
+
             // draw the walls
             for (let x = 0; x < this.width; x++) {
                 for (let y = 0; y < this.height; y++) {
-                    if (this.map[x][y] === 1) {
+                    let v = new V(x, y);
+
+                    if ( this.isWall(v) ) {
                         context.fillStyle = 'black';
                         context.fillRect(x * 20, y * 20, 20, 20);
+                    } else if ( this.isCandy(v) ) {
+                        // load and draw sprite_flower.png at x * 20, y * 20
+                        context.drawImage(flower, x * 20, y * 20, 20, 20);
                     }
                 }
             }
+        }
+    }
+
+    class InputHandler{
+        constructor(player) {
+            document.addEventListener('keydown', (event) => {
+                switch(event.keyCode) {
+                    case 37: // Left arrow key
+                        player.next = new V(-1, 0);
+                        break;
+                    case 38: // Up arrow key
+                        player.next = new V(0, -1);
+                        break;
+                    case 39: // Right arrow key
+                        player.next = new V(1, 0);
+                        break;
+                    case 40: // Down arrow key
+                        player.next = new V(0, 1);
+                        break;
+                }
+            });
         }
     }
 
@@ -207,15 +270,18 @@ window.addEventListener('load', function(){
                 const colorCode = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
                 let mapValue;
                 if (colorCode == 0x000000) {
-                    mapValue = 1; // Black pixel, ie wall
+                    mapValue = world_wall; // Black pixel, ie wall
                 } else if (colorCode == 0xff0000) {
                     this.enemies.push( new Enemy(this, x, y) );
                 } else if (colorCode == 0x00ff00) {
                     mapValue = 0; // Green pixel, player starting position
                     this.player.x = x;
                     this.player.y = y;
-                } else {
-                    mapValue = 0; // Other pixel colors; ignore
+                } else if ( colorCode == 0xffff00 ) {
+                    mapValue = world_candy; // Yellow pixel, ie candy
+                }
+                else {
+                    mapValue = world_space; // Other pixel colors; ignore
                 }
                 this.world.map[x][y] = mapValue;
                 console.log(`Coordinates: (${x}, ${y}), Pixel Value: ${colorCode}`);
@@ -226,24 +292,33 @@ window.addEventListener('load', function(){
     const game = new Game (canvas.width, canvas.height);
     game.loadLevel();
 
-    function gameLoop() {
+    let start, previousTimeStamp;
+
+    function gameLoop(ts) {
+        if ( start === undefined ) {
+            start = ts;
+        }
+        const elapsed = ts - start;
+        const delta = ts - previousTimeStamp;
+        previousTimeStamp = ts;
+
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Update game state
-        game.update();
+        if ( elapsed > 150 ) {
+            game.update();
+            start = ts;
+        }
 
         // Draw game
         game.draw(ctx);
 
         // Request next frame
-        //requestAnimationFrame(gameLoop);
+        if ( !game.player.isDead() )
+            requestAnimationFrame(gameLoop);
     }
 
     // Start the game loop
-    //requestAnimationFrame(gameLoop);
-    function anim() {
-        requestAnimationFrame(gameLoop);
-    }
-    this.setInterval( anim, 250 );
+    requestAnimationFrame(gameLoop);
 });
