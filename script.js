@@ -90,8 +90,10 @@ window.addEventListener('load', function(){
             }
 
             draw(context) {
-                context.fillStyle = 'green';
-                context.fillRect(this.x * 20, this.y * 20, this.width, this.height);
+                const bee = document.getElementById('bee');
+                context.drawImage(bee, this.x * 20, this.y * 20, this.width, this.height);
+                // context.fillStyle = 'green';
+                // context.fillRect(this.x * 20, this.y * 20, this.width, this.height);
             }
 
             isDead() {
@@ -126,6 +128,12 @@ window.addEventListener('load', function(){
                 pdirs.push( this.velocity );
                 pdirs.push( this.velocity );
                 pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
+                pdirs.push( this.velocity );
                 pdirs.push( this.velocity ); // naively increased chances of continuing in same direction
             }
             // check north
@@ -155,8 +163,13 @@ window.addEventListener('load', function(){
         }
 
         draw(context) {
-            context.fillStyle = 'red';
-            context.fillRect(this.x * 20, this.y * 20, this.width, this.height);
+            //context.fillStyle = 'red';
+            //context.fillRect(this.x * 20, this.y * 20, this.width, this.height);
+            const spider_sprite = document.getElementById('spider');
+            // draw the third 20x20 square of the sprite at x * 20, y * 20
+            context.drawImage(spider_sprite, 10, 24, 10, 10, this.x * 20, this.y * 20, 20, 20);
+
+            
         }
     }
 
@@ -193,6 +206,7 @@ window.addEventListener('load', function(){
 
         draw(context) {
             const flower = document.getElementById('flower');
+            const bush = document.getElementById('bush');
 
             // draw the walls
             for (let x = 0; x < this.width; x++) {
@@ -200,8 +214,11 @@ window.addEventListener('load', function(){
                     let v = new V(x, y);
 
                     if ( this.isWall(v) ) {
-                        context.fillStyle = 'black';
-                        context.fillRect(x * 20, y * 20, 20, 20);
+                        //context.fillStyle = 'black';
+                        //context.fillRect(x * 20, y * 20, 20, 20);
+                        // draw the bush
+                        context.drawImage(bush, x * 20, y * 20, 20, 20);
+
                     } else if ( this.isCandy(v) ) {
                         // load and draw sprite_flower.png at x * 20, y * 20
                         context.drawImage(flower, x * 20, y * 20, 20, 20);
