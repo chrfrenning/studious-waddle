@@ -190,6 +190,7 @@ window.addEventListener('load', function(){
             this.width = width;
             this.height = height;
             this.map = new Array(width).fill().map(() => new Array(height).fill());
+            this.first_time_empty = true;
         }
 
         isWall(v) {
@@ -200,8 +201,75 @@ window.addEventListener('load', function(){
             return this.map[v.x][v.y] === world_candy;
         }
 
-        update() {
+        isEmpty(v) {
+            if ( this.isWall(v) || this.isCandy(v) )
+                return false;
+            else
+                return true;
+        }
 
+        countCandy() {
+            let count = 0;
+            // loop through map and count isCandy()
+            for (let x = 0; x < this.map.length; x++) {
+                for (let y = 0; y < this.map[x].length; y++) {
+                    if (this.isCandy(new V(x, y))) {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        find_blank_space() {
+            const blankSpaces = [];
+            // loop through map and find all blank spaces
+            for (let x = 0; x < this.map.length; x++) {
+                for (let y = 0; y < this.map[x].length; y++) {
+                    if (this.isEmpty(new V(x, y))) {
+                        blankSpaces.push(new V(x, y));
+                    }
+                }
+            }
+            return blankSpaces;
+        }
+
+        find_random_blank_space(num) {
+            const randomSpaces = [];
+            const blankSpaces = this.find_blank_space();
+            const n = Math.min(blankSpaces.length, num); // number of blank spaces to fill with candy
+            for (let i = 0; i < n; i++) {
+                const randomIndex = Math.floor(Math.random() * blankSpaces.length);
+                const randomBlankSpace = blankSpaces[randomIndex];
+                randomSpaces.push(randomBlankSpace);
+            }
+            return randomSpaces;
+        }
+        
+        update() {
+            this.find_blank_space();
+            this.find_random_blank_space(3);
+            
+            if ( this.countCandy() < 20 ) {
+                if ( this.first_time_empty ) {
+                    this.first_time_empty = false;
+    
+                    // add two enemies at random places
+                    let new_enemies = this.find_random_blank_space(2);
+                    for ( let i = 0; i < new_enemies.lenght; i++ )
+                        this.enemies.push( new Enemy(this.game, new_enemies[i].x, new_enemies[i].y) );
+    
+                }
+
+                // randomly add candy in a blank spot
+                let new_candy = this.find_random_blank_space(10);
+                new_candy.forEach( i => {
+                    this.map[ i.x ][ i.y ] = world_candy;
+                })
+
+
+            }
         }
 
         draw(context) {
