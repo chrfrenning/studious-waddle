@@ -259,15 +259,17 @@ window.addEventListener('load', function(){
                     let new_enemies = this.find_random_blank_space(2);
                     for ( let i = 0; i < new_enemies.lenght; i++ )
                         this.enemies.push( new Enemy(this.game, new_enemies[i].x, new_enemies[i].y) );
-    
+
+                    // randomly add candy in a blank spot
+                    let new_candy = this.find_random_blank_space(10);
+                    new_candy.forEach( i => {
+                        this.map[ i.x ][ i.y ] = world_candy;
+                    })
                 }
 
-                // randomly add candy in a blank spot
-                let new_candy = this.find_random_blank_space(10);
-                new_candy.forEach( i => {
-                    this.map[ i.x ][ i.y ] = world_candy;
-                })
-
+                if ( this.countCandy() == 0 ) {
+                    this.game.player.did_win = true;
+                }
 
             }
         }
@@ -400,7 +402,7 @@ window.addEventListener('load', function(){
         game.draw(ctx);
 
         // Request next frame
-        if ( !game.player.isDead() )
+        if ( !game.player.isDead() && !game.player.did_win )
             requestAnimationFrame(gameLoop);
     }
 
